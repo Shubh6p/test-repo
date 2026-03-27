@@ -44,7 +44,7 @@ const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
     console.log(`
   ╔═══════════════════════════════════════╗
-  ║   DirectDrop Signaling Server         ║
+  ║   Klick Share Signaling Server        ║
   ║   Running on port ${PORT}                ║
   ║   Client URL: ${CLIENT_URL}  ║
   ╚═══════════════════════════════════════╝
