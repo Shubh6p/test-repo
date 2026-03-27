@@ -117,6 +117,16 @@ function setupSocketHandlers(io) {
             }
         });
 
+        // Leave Room (Manual Abort)
+        socket.on('leave-room', () => {
+            const result = roomManager.handleDisconnect(socket.id);
+            if (result && result.peerId) {
+                io.to(result.peerId).emit('peer-disconnected', {
+                    reason: 'Peer left the session'
+                });
+            }
+        });
+
         // Disconnect
         socket.on('disconnect', (reason) => {
             console.log(`[Disconnect] ${socket.id} (${reason})`);
