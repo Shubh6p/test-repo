@@ -5,10 +5,11 @@ function setupSocketHandlers(io) {
     io.on('connection', (socket) => {
         console.log(`[Connect] ${socket.id}`);
 
-        // SENDER: Create a room (fileInfo is optional for connect-first flow)
-        socket.on('create-room', (fileInfo, callback) => {
+        // SENDER: Create a room
+        socket.on('create-room', (data, callback) => {
             try {
-                const roomId = roomManager.createRoom(socket.id, fileInfo || null);
+                const { sessionId, fileInfo } = data || {};
+                const roomId = roomManager.createRoom(socket.id, sessionId, fileInfo || null);
                 socket.join(roomId);
 
                 callback({ success: true, roomId });
@@ -19,9 +20,10 @@ function setupSocketHandlers(io) {
         });
 
         // RECEIVER: Join a room
-        socket.on('join-room', (roomId, callback) => {
+        socket.on('join-room', (data, callback) => {
             try {
-                const result = roomManager.joinRoom(socket.id, roomId);
+                const { roomId, sessionId } = data || {};
+                const result = roomManager.joinRoom(socket.id, sessionId, roomId);
 
                 if (!result.success) {
                     const messages = {
@@ -48,6 +50,38 @@ function setupSocketHandlers(io) {
                 });
             } catch (err) {
                 console.error('[join-room error]', err);
+                callback({ success: false, error: 'Server error' });
+            }
+        });
+
+        // Reconnect session (after refresh)
+        socket.on('reconnect-room', (data, callback) => {
+            try {
+                const { roomId, sessionId } = data || {};
+                const result = roomManager.reconnectRoom(socket.id, sessionId, roomId);
+
+                if (!result.success) {
+                    return callback({ success: false, error: result.error });
+                }
+
+                const normalizedId = roomManager.normalizeRoomId(roomId);
+                socket.join(normalizedId);
+
+                // Notify peer that we are back
+                if (result.peerId) {
+                    io.to(result.peerId).emit('peer-reconnected', {
+                        role: result.role,
+                        socketId: socket.id
+                    });
+                }
+
+                callback({
+                    success: true,
+                    role: result.role,
+                    fileInfo: result.fileInfo
+                });
+            } catch (err) {
+                console.error('[reconnect-room error]', err);
                 callback({ success: false, error: 'Server error' });
             }
         });
@@ -105,6 +139,7 @@ function setupSocketHandlers(io) {
 
         // Transfer Status
         socket.on('transfer-complete', () => {
+            roomManager.updateActivity(socket.id, true);
             const roomInfo = roomManager.getRoomBySocket(socket.id);
             if (!roomInfo) return;
 
@@ -158,6 +193,7 @@ function setupSocketHandlers(io) {
 
         // Relay: File chunk (with acknowledgment flow control)
         socket.on('relay-chunk', (data, ack) => {
+            roomManager.updateActivity(socket.id, true);
             const roomInfo = roomManager.getRoomBySocket(socket.id);
             if (!roomInfo) return;
 
