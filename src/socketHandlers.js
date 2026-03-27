@@ -5,17 +5,10 @@ function setupSocketHandlers(io) {
     io.on('connection', (socket) => {
         console.log(`[Connect] ${socket.id}`);
 
-        // SENDER: Create a room
+        // SENDER: Create a room (fileInfo is optional for connect-first flow)
         socket.on('create-room', (fileInfo, callback) => {
             try {
-                if (!fileInfo || !fileInfo.name || !fileInfo.size) {
-                    return callback({
-                        success: false,
-                        error: 'Invalid file info'
-                    });
-                }
-
-                const roomId = roomManager.createRoom(socket.id, fileInfo);
+                const roomId = roomManager.createRoom(socket.id, fileInfo || null);
                 socket.join(roomId);
 
                 callback({ success: true, roomId });

@@ -16,7 +16,7 @@ class RoomManager {
         const roomData = {
             sender: socketId,
             receiver: null,
-            fileInfo: fileInfo,
+            fileInfo: fileInfo || null,
             createdAt: Date.now(),
             status: 'waiting'
         };
@@ -25,7 +25,11 @@ class RoomManager {
         this.socketToRoom.set(socketId, roomId);
 
         console.log(`[Room ${roomId}] Created by ${socketId}`);
-        console.log(`  File: ${fileInfo.name} (${fileInfo.size} bytes)`);
+        if (fileInfo) {
+            console.log(`  File: ${fileInfo.name} (${fileInfo.size} bytes)`);
+        } else {
+            console.log(`  Session room (no file yet)`);
+        }
 
         return roomId;
     }
