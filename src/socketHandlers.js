@@ -136,6 +136,54 @@ function setupSocketHandlers(io) {
             }
         });
 
+        // ========== SOCKET RELAY FALLBACK ==========
+        // When WebRTC fails completely, files are relayed through the server
+
+        // Relay: File metadata
+        socket.on('relay-metadata', (data) => {
+            const roomInfo = roomManager.getRoomBySocket(socket.id);
+            if (!roomInfo) return;
+
+            const targetId = roomInfo.sender === socket.id
+                ? roomInfo.receiver
+                : roomInfo.sender;
+
+            if (targetId) {
+                io.to(targetId).emit('relay-metadata', data);
+            }
+        });
+
+        // Relay: File chunk (with acknowledgment flow control)
+        socket.on('relay-chunk', (data, ack) => {
+            const roomInfo = roomManager.getRoomBySocket(socket.id);
+            if (!roomInfo) return;
+
+            const targetId = roomInfo.sender === socket.id
+                ? roomInfo.receiver
+                : roomInfo.sender;
+
+            if (targetId) {
+                io.to(targetId).emit('relay-chunk', data, () => {
+                    // Receiver acknowledged — tell sender to continue
+                    if (typeof ack === 'function') ack();
+                });
+            }
+        });
+
+        // Relay: Transfer complete
+        socket.on('relay-complete', () => {
+            const roomInfo = roomManager.getRoomBySocket(socket.id);
+            if (!roomInfo) return;
+
+            const targetId = roomInfo.sender === socket.id
+                ? roomInfo.receiver
+                : roomInfo.sender;
+
+            if (targetId) {
+                io.to(targetId).emit('relay-complete');
+            }
+        });
+
         // Health Check
         socket.on('ping-server', (callback) => {
             callback({
